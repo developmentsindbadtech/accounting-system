@@ -1,0 +1,40 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('inventory_transactions', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('item_id');
+            $table->enum('transaction_type', ['purchase', 'sale', 'adjustment', 'transfer']);
+            $table->decimal('quantity', 10, 2);
+            $table->decimal('unit_cost', 15, 2)->default(0);
+            $table->string('reference_type')->nullable();
+            $table->unsignedBigInteger('reference_id')->nullable();
+            $table->date('date')->index();
+            $table->unsignedBigInteger('created_by');
+            $table->timestamp('created_at');
+
+            $table->foreign('item_id')->references('id')->on('items')->onDelete('restrict');
+            $table->index(['tenant_id', 'date']);
+            $table->index(['reference_type', 'reference_id']);
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('inventory_transactions');
+    }
+};

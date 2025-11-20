@@ -1,0 +1,35 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "alpinejs": "^3.15.2",
+    "autoprefixer": "^10.4.22",
+    "axios": "^1.6.4",
+    "laravel-vite-plugin": "^1.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.18",
+    "vite": "^5.0"
+  },
+  "name": "sindbad-tech-accounting-system",
+  "version": "1.0.0",
+  "description": "Sindbad.Tech Accounting System - QuickBooks-like accounting application for Saudi Arabia IFRS standards",
+  "main": "vite.config.js",
+  "directories": {
+    "test": "tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/developmentsindbadtech/accounting-system.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/developmentsindbadtech/accounting-system/issues"
+  },
+  "homepage": "https://github.com/developmentsindbadtech/accounting-system#readme"
+}
