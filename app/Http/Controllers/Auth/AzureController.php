@@ -35,6 +35,9 @@ class AzureController extends Controller
         $email = $azureUser->getEmail();
 
         if (!$email) {
+            Log::warning('Azure SSO: No email returned from Microsoft', [
+                'azure_user_raw' => $azureUser->getRaw()
+            ]);
             return redirect()->route('login')->withErrors([
                 'email' => 'Microsoft did not return an email address for your profile.',
             ]);
@@ -44,42 +47,85 @@ class AzureController extends Controller
 
         $azureUserId = $azureUser->getId() ?? ($azureUser->user['id'] ?? $azureUser->getRaw()['id'] ?? null);
 
-        $user = User::where('email', $email)->first();
+        try {
+            $user = User::where('email', $email)->first();
 
-        if (!$user) {
-            $tenantId = Tenant::query()->value('id') ?? 1;
+            if (!$user) {
+                $tenant = Tenant::query()->first();
+                
+                if (!$tenant) {
+                    Log::error('No tenant found in database during Azure SSO signup', [
+                        'email' => $email,
+                        'azure_id' => $azureUserId
+                    ]);
+                    return redirect()->route('login')->withErrors([
+                        'email' => 'System configuration error. Please contact your administrator.',
+                    ]);
+                }
 
-            $user = User::create([
-                'tenant_id' => $tenantId,
-                'name' => $azureUser->getName() ?: ($azureUser->user['displayName'] ?? $email),
+                Log::info('Creating new user via Azure SSO', [
+                    'email' => $email,
+                    'role' => $role,
+                    'tenant_id' => $tenant->id
+                ]);
+
+                $user = User::create([
+                    'tenant_id' => $tenant->id,
+                    'name' => $azureUser->getName() ?: ($azureUser->user['displayName'] ?? $email),
+                    'email' => $email,
+                    'password' => Str::random(32),
+                    'role' => $role,
+                    'is_active' => true,
+                    'azure_id' => $azureUserId,
+                ]);
+            } else {
+                $updateData = [];
+                if ($user->role !== $role) {
+                    $updateData['role'] = $role;
+                }
+                if ($user->azure_id !== $azureUserId && $azureUserId) {
+                    $updateData['azure_id'] = $azureUserId;
+                }
+                if (!empty($updateData)) {
+                    $user->update($updateData);
+                    Log::info('Updated existing user via Azure SSO', [
+                        'email' => $email,
+                        'updated_fields' => array_keys($updateData)
+                    ]);
+                }
+            }
+
+            if (!$user->is_active) {
+                Log::warning('Inactive user attempted Azure SSO login', ['email' => $email]);
+                return redirect()->route('login')->withErrors([
+                    'email' => 'Your account is inactive. Please contact an administrator.',
+                ]);
+            }
+
+            Auth::login($user, true);
+
+            Log::info('User successfully logged in via Azure SSO', ['email' => $email, 'role' => $user->role]);
+
+            return redirect()->intended(route('dashboard'));
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('Database error during Azure SSO callback', [
                 'email' => $email,
-                'password' => Str::random(32),
-                'role' => $role,
-                'is_active' => true,
-                'azure_id' => $azureUserId,
+                'error' => $e->getMessage(),
+                'code' => $e->getCode()
             ]);
-        } else {
-            $updateData = [];
-            if ($user->role !== $role) {
-                $updateData['role'] = $role;
-            }
-            if ($user->azure_id !== $azureUserId && $azureUserId) {
-                $updateData['azure_id'] = $azureUserId;
-            }
-            if (!empty($updateData)) {
-                $user->update($updateData);
-            }
-        }
-
-        if (!$user->is_active) {
             return redirect()->route('login')->withErrors([
-                'email' => 'Your account is inactive. Please contact an administrator.',
+                'email' => 'Database error occurred. Please contact your administrator.',
+            ]);
+        } catch (\Throwable $th) {
+            Log::error('Unexpected error during Azure SSO callback', [
+                'email' => $email,
+                'exception' => $th->getMessage(),
+                'trace' => $th->getTraceAsString()
+            ]);
+            return redirect()->route('login')->withErrors([
+                'email' => 'An unexpected error occurred. Please try again or contact your administrator.',
             ]);
         }
-
-        Auth::login($user, true);
-
-        return redirect()->intended(route('dashboard'));
     }
 
     protected function determineRoleFromAzure($azureUser, Request $request = null): string
