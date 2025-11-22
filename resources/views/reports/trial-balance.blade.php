@@ -7,9 +7,15 @@
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-900">Trial Balance (IFRS Compliant)</h1>
         <div class="flex flex-wrap items-center gap-2">
+            @if(auth()->user()->canEdit())
             <a href="{{ route('reports.trial-balance.export', request()->query()) }}" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 text-sm">
                 Download CSV
             </a>
+            @else
+            <span class="bg-green-300 text-white px-4 py-2 rounded-md cursor-not-allowed opacity-50 text-sm" title="Viewer: No permission">
+                Download CSV
+            </span>
+            @endif
             <form method="GET" action="{{ route('reports.trial-balance') }}" class="flex items-center space-x-2">
                 <label for="as_of_date" class="text-sm font-medium text-gray-700">As of Date:</label>
                 <input type="date" name="as_of_date" id="as_of_date" value="{{ $asOfDate ?? now()->format('Y-m-d') }}" 

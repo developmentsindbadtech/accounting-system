@@ -13,9 +13,15 @@
             <a href="{{ route('dashboard.visualization', request()->all()) }}" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 text-sm">
                 Data Visualization
             </a>
+            @if(auth()->user()->canEdit())
             <a href="{{ route('dashboard.export', request()->all()) }}" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 text-sm">
                 Download CSV
             </a>
+            @else
+            <span class="bg-green-300 text-white px-4 py-2 rounded-md cursor-not-allowed opacity-50 text-sm" title="Viewer: No permission">
+                Download CSV
+            </span>
+            @endif
         </div>
     </div>
 

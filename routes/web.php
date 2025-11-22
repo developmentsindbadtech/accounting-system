@@ -103,7 +103,25 @@ Route::middleware(['tenant.identify', 'auth'])->group(function () {
         Route::delete('/glossary/{glossary}', [GlossaryController::class, 'destroy'])->name('glossary.destroy');
     });
 
-    // Show routes - Must be defined AFTER create/edit routes to avoid route conflicts
+    // Dashboard Routes
+    Route::get('/dashboard/visualization', [DashboardController::class, 'visualization'])->name('dashboard.visualization');
+    
+    // CSV Export Routes - MUST be defined BEFORE show routes to avoid route conflicts
+    // Only Admin and Accountant can export
+    Route::middleware(['role:admin,accountant'])->group(function () {
+        Route::get('/dashboard/export', [DashboardController::class, 'export'])->name('dashboard.export');
+        Route::get('/chart-of-accounts/export', [ChartOfAccountsController::class, 'export'])->name('chart-of-accounts.export');
+        Route::get('/journal-entries/export', [JournalEntryController::class, 'export'])->name('journal-entries.export');
+        Route::get('/customers/export', [CustomerController::class, 'export'])->name('customers.export');
+        Route::get('/invoices/export', [InvoiceController::class, 'export'])->name('invoices.export');
+        Route::get('/vendors/export', [VendorController::class, 'export'])->name('vendors.export');
+        Route::get('/bills/export', [BillController::class, 'export'])->name('bills.export');
+        Route::get('/inventory/export', [InventoryController::class, 'export'])->name('inventory.export');
+        Route::get('/fixed-assets/export', [FixedAssetController::class, 'export'])->name('fixed-assets.export');
+        Route::get('/logs/export', [LogsController::class, 'export'])->name('logs.export');
+    });
+
+    // Show routes - Must be defined AFTER create/edit/export routes to avoid route conflicts
     Route::get('chart-of-accounts/{chart_of_account}', [ChartOfAccountsController::class, 'show'])->name('chart-of-accounts.show');
     Route::get('journal-entries/{journal_entry}', [JournalEntryController::class, 'show'])->name('journal-entries.show');
     Route::get('customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
@@ -118,28 +136,19 @@ Route::middleware(['tenant.identify', 'auth'])->group(function () {
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
         Route::get('/trial-balance', [ReportController::class, 'trialBalance'])->name('trial-balance');
-        Route::get('/trial-balance/export', [ReportController::class, 'exportTrialBalance'])->name('trial-balance.export');
         Route::get('/profit-loss', [ReportController::class, 'profitLoss'])->name('profit-loss');
-        Route::get('/profit-loss/export', [ReportController::class, 'exportProfitLoss'])->name('profit-loss.export');
         Route::get('/balance-sheet', [ReportController::class, 'balanceSheet'])->name('balance-sheet');
-        Route::get('/balance-sheet/export', [ReportController::class, 'exportBalanceSheet'])->name('balance-sheet.export');
+        
+        // Report CSV Exports - Only Admin and Accountant
+        Route::middleware(['role:admin,accountant'])->group(function () {
+            Route::get('/trial-balance/export', [ReportController::class, 'exportTrialBalance'])->name('trial-balance.export');
+            Route::get('/profit-loss/export', [ReportController::class, 'exportProfitLoss'])->name('profit-loss.export');
+            Route::get('/balance-sheet/export', [ReportController::class, 'exportBalanceSheet'])->name('balance-sheet.export');
+        });
     });
-    
-    // Dashboard Routes
-    Route::get('/dashboard/export', [DashboardController::class, 'export'])->name('dashboard.export');
-    Route::get('/dashboard/visualization', [DashboardController::class, 'visualization'])->name('dashboard.visualization');
-    Route::get('/chart-of-accounts/export', [ChartOfAccountsController::class, 'export'])->name('chart-of-accounts.export');
-    Route::get('/journal-entries/export', [JournalEntryController::class, 'export'])->name('journal-entries.export');
-    Route::get('/customers/export', [CustomerController::class, 'export'])->name('customers.export');
-    Route::get('/invoices/export', [InvoiceController::class, 'export'])->name('invoices.export');
-    Route::get('/vendors/export', [VendorController::class, 'export'])->name('vendors.export');
-    Route::get('/bills/export', [BillController::class, 'export'])->name('bills.export');
-    Route::get('/inventory/export', [InventoryController::class, 'export'])->name('inventory.export');
-    Route::get('/fixed-assets/export', [FixedAssetController::class, 'export'])->name('fixed-assets.export');
 
     // Logs - All authenticated users can view, only admin can delete
     Route::get('/logs', [LogsController::class, 'index'])->name('logs.index');
-    Route::get('/logs/export', [LogsController::class, 'export'])->name('logs.export');
     Route::middleware(['role:admin'])->group(function () {
         Route::delete('/logs/{log}', [LogsController::class, 'destroy'])->name('logs.destroy');
     });
@@ -209,3 +218,34 @@ Route::post('/logout', function (\Illuminate\Http\Request $request) {
 Route::get('/', function () {
     return redirect('/dashboard');
 });
+
+// DEBUG ROUTE - Check user permissions (Remove after debugging)
+Route::get('/debug/user-info', function () {
+    if (!auth()->check()) {
+        return response()->json([
+            'authenticated' => false,
+            'message' => 'Not logged in. Go to /login first.'
+        ]);
+    }
+
+    $user = auth()->user();
+    
+    return response()->json([
+        'authenticated' => true,
+        'user' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+            'is_active' => $user->is_active,
+        ],
+        'permissions' => [
+            'isAdmin()' => $user->isAdmin(),
+            'isAccountant()' => $user->isAccountant(),
+            'canEdit()' => $user->canEdit(),
+            'isViewer()' => $user->isViewer(),
+            'canDelete()' => $user->canDelete(),
+        ],
+        'message' => 'If canEdit() is true, you should see CSV download buttons. If false, check your role in database.'
+    ]);
+})->middleware(['tenant.identify', 'auth']);

@@ -7,14 +7,17 @@
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-900">Chart of Accounts</h1>
         <div class="flex items-center space-x-3">
+            @if(auth()->user()->canEdit())
             <a href="{{ route('chart-of-accounts.export', request()->query()) }}" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 text-sm">
                 Download CSV
             </a>
-            @if(auth()->user()->canEdit())
             <a href="{{ route('chart-of-accounts.create') }}" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
                 Add New Account
             </a>
             @else
+            <span class="bg-green-300 text-white px-4 py-2 rounded-md cursor-not-allowed opacity-50 text-sm" title="Viewer: No permission">
+                Download CSV
+            </span>
             <span class="bg-indigo-300 text-white px-4 py-2 rounded-md cursor-not-allowed opacity-50" title="Viewer: No permission">
                 Add New Account
             </span>

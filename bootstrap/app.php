@@ -16,6 +16,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant.switch' => \App\Http\Middleware\SwitchTenantDatabase::class,
             'role' => \App\Http\Middleware\CheckRole::class,
         ]);
+        
+        // Exclude Azure OAuth callback from CSRF verification
+        // This is necessary because the request comes from Microsoft's servers
+        $middleware->validateCsrfTokens(except: [
+            '/login/azure/callback',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

@@ -23,10 +23,56 @@ class AzureController extends Controller
 
     public function callback(Request $request)
     {
+        // Log incoming callback for debugging
+        Log::info('Azure SSO callback received', [
+            'has_code' => $request->has('code'),
+            'has_state' => $request->has('state'),
+            'has_error' => $request->has('error'),
+            'error' => $request->get('error'),
+            'error_description' => $request->get('error_description'),
+        ]);
+
+        // Check if Microsoft returned an error
+        if ($request->has('error')) {
+            Log::error('Azure AD returned error', [
+                'error' => $request->get('error'),
+                'error_description' => $request->get('error_description'),
+            ]);
+            return redirect()->route('login')->withErrors([
+                'email' => 'Microsoft login failed: ' . $request->get('error_description', 'Unknown error'),
+            ]);
+        }
+
         try {
             $azureUser = Socialite::driver('azure')->stateless()->user();
+            
+            Log::info('Azure user retrieved successfully', [
+                'email' => $azureUser->getEmail(),
+                'name' => $azureUser->getName(),
+                'id' => $azureUser->getId(),
+            ]);
+        } catch (\Laravel\Socialite\Two\InvalidStateException $e) {
+            Log::error('Azure AD invalid state exception', [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return redirect()->route('login')->withErrors([
+                'email' => 'Session expired. Please try signing in again.',
+            ]);
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            Log::error('Azure AD API error', [
+                'exception' => $e->getMessage(),
+                'response' => $e->hasResponse() ? $e->getResponse()->getBody()->getContents() : 'No response',
+            ]);
+            return redirect()->route('login')->withErrors([
+                'email' => 'Unable to communicate with Microsoft. Please try again.',
+            ]);
         } catch (\Throwable $th) {
-            Log::error('Azure AD callback error', ['exception' => $th]);
+            Log::error('Azure AD callback error', [
+                'exception' => $th->getMessage(),
+                'type' => get_class($th),
+                'trace' => $th->getTraceAsString(),
+            ]);
             return redirect()->route('login')->withErrors([
                 'email' => 'Unable to sign in with Microsoft at the moment. Please try again.',
             ]);
