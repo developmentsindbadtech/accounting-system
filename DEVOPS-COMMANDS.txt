@@ -1,0 +1,13 @@
+# DevOps - Run These Commands
+
+cd /path/to/accounting-system
+git pull origin main
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+php artisan users:create-sindbad-tech
+php artisan db:seed --class=ProductionTenantSeeder
+php artisan optimize:clear
+sudo systemctl restart php8.2-fpm
+sudo systemctl restart nginx
+
+# DONE! Accounts created with password: Ksa@2021!
